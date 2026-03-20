@@ -1,54 +1,35 @@
 # Asset Manager
 
-Управление 3D моделями и текстурами через MinIO S3.
+Управление 3D моделями для AR-отображения.
 
-**Репозиторий:** https://github.com/IdzAnAG1/mapps-asset-manager
-**Деплой:** Home PC via Tailscale
-**Порт:** 49783
+## Что делает
 
-## Эндпоинты
+- Генерирует presigned URL для загрузки файлов напрямую в S3
+- Генерирует presigned URL для скачивания файлов
+- Хранит метаданные моделей (name, format)
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | /api/v1/assets/models/upload-url | Получить presigned URL для загрузки модели |
-| GET | /api/v1/assets/models/{id} | Получить модель (presigned download URL) |
-| POST | /api/v1/assets/textures/upload-url | Получить presigned URL для загрузки текстуры |
-| GET | /api/v1/assets/textures/{id} | Получить текстуру |
+## Технологии
+
+- Go + Kratos
+- MinIO (S3-совместимое хранилище)
+- Presigned URL — клиент загружает файл напрямую, минуя сервер
 
 ## Как работает загрузка
 
 ```
-1. POST /upload-url → сервис генерирует UUID, создаёт presigned URL в MinIO
-2. Клиент PUT файл напрямую в MinIO по presigned URL (сервер не участвует)
-3. model_id сохраняется в продукте
-4. GET /models/{id} → сервис генерирует новый presigned download URL (TTL 15 мин)
+Клиент → POST /upload-url → Asset Manager → MinIO генерирует подписанный URL
+Клиент → PUT файл напрямую в MinIO (сервер не участвует)
 ```
 
-## Важно про presigned URL
+Файл никогда не проходит через бэкенд — это снимает нагрузку и убирает ограничения по размеру.
 
-- Upload URL живёт **15 минут** — загружать нужно сразу
-- Заголовки `x-amz-meta-name` и `x-amz-meta-format` **обязательны** при PUT — вшиты в подпись
-- Файл идёт **напрямую** в MinIO, минуя gateway
+## gRPC методы
 
-## MinIO
+- `GetModelUploadURL` — получить presigned URL для загрузки
+- `GetModel` — получить метаданные модели и presigned URL для скачивания
 
-- S3 API: `http://100.84.79.40:9000` (Tailscale only)
-- Консоль: `http://100.84.79.40:9001` (Tailscale only)
-- Бакет: `mapps-assets`
-- Папки: `models/`, `textures/`
+## Форматы
 
-## CI/CD
-
-- CI: lint, test, validate-minio, build
-- CD: self-hosted runner (actions-runner-2), docker-compose с проектом `mapps-asset-manager`
-
-## ENV переменные
-
-| Переменная | Описание |
-|------------|----------|
-| `S3_ENDPOINT` | Внутренний MinIO endpoint (http://minio:9000) |
-| `S3_PUBLIC_ENDPOINT` | Публичный endpoint для presigned URL (Tailscale IP) |
-| `S3_BUCKET` | Имя бакета |
-| `S3_ACCESS_KEY_ID` | MinIO логин |
-| `S3_SECRET_ACCESS_KEY` | MinIO пароль |
-| `S3_PRESIGN_TTL` | Время жизни presigned URL (15m) |
+Поддерживаемые форматы 3D моделей:
+- `.glb` — бинарный glTF (основной)
+- `.gltf` — текстовый glTF

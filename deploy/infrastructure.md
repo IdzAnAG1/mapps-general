@@ -1,76 +1,43 @@
 # Инфраструктура
 
-## Серверы
-
-### VPS (Selectel)
-- IP: `130.49.148.135`
-- OS: Linux amd64
-- Сервисы: Gateway, Caddy
-- GitHub Actions runner: `actions-runner-gateway`
-
-### Home PC
-- Tailscale IP: `100.84.79.40`
-- Сервисы: Auth, Product, Asset Manager, MinIO, PostgreSQL
-- GitHub Actions runners:
-  - `actions-runner-1` — auth
-  - `actions-runner-2` — asset_manager
-  - `actions-runner-3` — product
-
-## Сетевая схема
+## Топология
 
 ```
-Интернет
-   |
-   v
-Caddy :80 (VPS)
-   |
-   v
-Gateway :8080 (VPS)
-   |
-   | Tailscale VPN
-   |——→ Auth          100.84.79.40:49780
-   |——→ Product       100.84.79.40:49782
-   |——→ Asset Manager 100.84.79.40:49783
-              |
-              v
-           MinIO 100.84.79.40:9000 (только Tailscale)
+[Интернет]
+    |
+[VPS]  — публичный сервер
+    |__ Caddy       — reverse proxy, порт 80/443
+    |__ Gateway     — точка входа
+
+[Home PC]  — домашний сервер (приватный, через Tailscale)
+    |__ Auth Service
+    |__ Product Service
+    |__ Asset Manager
+    |__ MinIO         — хранилище файлов
+    |__ PostgreSQL    — базы данных
 ```
 
-## Docker Compose проекты
+## Почему такая топология
 
-| Сервис | Project name | Директория на сервере |
-|--------|-------------|----------------------|
-| Auth | `mapps-auth` | `$HOME/mapps/auth/` |
-| Product | `mapps-product` | `$HOME/mapps/product/` |
-| Asset Manager | `mapps-asset-manager` | `$HOME/mapps/asset_manager/` |
+- Gateway на VPS — нужен публичный IP для мобильного приложения
+- Остальные сервисы на home PC — дешевле, данные остаются локально
+- Tailscale соединяет VPS и home PC в приватную сеть
 
-## Порты
+## CI/CD
 
-| Сервис | Внутренний порт | Внешний порт |
-|--------|----------------|--------------|
-| Gateway | 8080 | 80 (через Caddy) |
-| Auth | 8081 | 49780 |
-| Product | 8082 | 49782 |
-| Asset Manager | 8083 | 49783 |
-| MinIO S3 | 9000 | 9000 (Tailscale) |
-| MinIO Console | 9001 | 9001 (Tailscale) |
-| PostgreSQL | 5432 | 5432 (локально) |
+Каждый сервис имеет два workflow:
 
-## CI/CD флоу
+**CI** (при push/PR):
+- Линтинг кода
+- Тесты
+- Проверка миграций
+- Сборка Docker образа → DockerHub
 
-```
-Push to main
-     |
-     v
-CI (ubuntu-latest)
-  - lint
-  - test
-  - migrations check + apply
-  - docker build + push to DockerHub
-     |
-     v
-CD (self-hosted runner)
-  - docker compose down
-  - docker compose pull
-  - docker compose up -d
-```
+**CD** (после успешного CI):
+- Запускается на self-hosted runner (home PC или VPS)
+- Скачивает новый образ
+- Перезапускает контейнер через docker compose
+
+## Изоляция сервисов
+
+Каждый сервис запускается в отдельном docker compose проекте с уникальным `--project-name`. Это гарантирует что сервисы не влияют друг на друга при деплое.

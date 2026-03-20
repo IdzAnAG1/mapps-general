@@ -1,46 +1,34 @@
 # Product Service
 
-Каталог товаров с привязкой к 3D моделям.
+Каталог товаров.
 
-**Репозиторий:** https://github.com/IdzAnAG1/mapps-products
-**Деплой:** Home PC via Tailscale
-**Порт:** 49782
+## Что делает
 
-## Эндпоинты
-
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | /api/v1/mobile/products | Список товаров (с фильтрацией по категории) |
-| GET | /api/v1/mobile/products/{id} | Получить товар |
-| POST | /api/v1/mobile/products | Создать товар |
-| PUT | /api/v1/mobile/products/{id} | Обновить товар |
-
-## Модель товара
-
-```json
-{
-  "id": "uuid",
-  "name": "Диван угловой",
-  "description": "Описание",
-  "price": 49999.99,
-  "category": "sofas",
-  "model_id": "uuid — ссылка на 3D модель в Asset Manager"
-}
-```
-
-## Категории
-
-- `sofas` — диваны и кресла
-- `chairs` — стулья
-- `tables` — столы и комоды
+- Хранение товаров в PostgreSQL
+- CRUD операции над товарами
+- Каждый товар ссылается на 3D модель через `model_id`
 
 ## Технологии
 
-- PostgreSQL — хранение товаров
-- sqlc — генерация Go кода из SQL
+- Go + Kratos
+- PostgreSQL
+- sqlc — генерация SQL запросов
 - Goose — миграции БД
 
-## CI/CD
+## gRPC методы
 
-- CI: lint, test, migrations check, build
-- CD: self-hosted runner (actions-runner-3), docker-compose с проектом `mapps-product`
+- `ListProducts` — список товаров с фильтрацией по категории
+- `GetProduct` — получить товар по id
+- `CreateProduct` — создать товар
+- `UpdateProduct` — обновить товар
+
+## Поля товара
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| id | uuid | уникальный идентификатор |
+| name | string | название |
+| description | string | описание |
+| price | float | цена |
+| category | string | категория (sofas, chairs, tables...) |
+| model_id | uuid | ссылка на 3D модель в Asset Manager |

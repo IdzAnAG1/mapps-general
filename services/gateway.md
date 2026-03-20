@@ -1,32 +1,29 @@
 # Gateway
 
-Точка входа для мобильного приложения. Принимает HTTP запросы и проксирует их в нужный микросервис по gRPC.
-
-**Репозиторий:** https://github.com/IdzAnAG1/mapps-gateway
-**Деплой:** VPS (130.49.148.135)
-**Порт:** 8080 (за Caddy на 80)
+Единственная точка входа для мобильного приложения.
 
 ## Что делает
 
-- Роутит запросы к Auth, Product, Asset Manager
-- HTTP → gRPC трансляция (Kratos framework)
-- Логирует все входящие запросы
+- Принимает HTTP запросы от мобильного приложения
+- Транслирует их в gRPC вызовы к нужному сервису
+- Возвращает ответ обратно в формате JSON
 
-## Конфигурация
+## Протоколы
 
-`configs/config.yaml` — адреса всех downstream сервисов:
+- Снаружи: **HTTP/REST**
+- Внутри: **gRPC**
 
-```yaml
-data:
-  auth:
-    addr: 100.84.79.40:49780
-  product:
-    addr: 100.84.79.40:49782
-  asset_manager:
-    addr: 100.84.79.40:49783
+## Маршрутизация
+
+```
+/api/mobile/v1/auth/*     →  Auth Service
+/api/v1/mobile/products/* →  Product Service
+/api/v1/assets/*          →  Asset Manager
+/api/v1/viability/*       →  Health checks
 ```
 
-## CI/CD
+## Зависимости
 
-- CI: lint, test, build → push Docker image
-- CD: self-hosted runner на VPS, `docker run` с volume-mounted конфигом
+- Auth Service
+- Product Service
+- Asset Manager
